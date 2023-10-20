@@ -1,33 +1,28 @@
 ---
-title: "第一次作业你的报告题目"
-CJKmainfont: Songti SC
-author: "your name"
+title: "2023MEM第一次作业"
+author: "陈杰 2023281051009"
 date: "`r Sys.Date()`"
 output:
+  html_document:
+    df_print: paged
   pdf_document:
     latex_engine: xelatex
-  word_document:
-    toc: yes
-  html_document:
-    code_folding: show
-    fig_caption: yes
-    fig_width: 10
-    highlight: tango
-    number_sections: yes
-    theme: cosmo
-    toc: yes
+    keep_tex: yes
 ---
+
 ```{r setup, include = FALSE,echo = FALSE}
 knitr::opts_chunk$set(echo = FALSE,error = FALSE, warning = FALSE, message = FALSE,
                       out.width = "100%", split = FALSE, fig.align = "center")
 #load library
 library(tidyverse)
-library(kableExtra)
+#library(kableExtra)
 library(lubridate)
 library(scales)
 library(plotly)
 library(patchwork)
 library(ggrepel)
+library(showtext)
+library(dplyr)
 ```
 
 # 你的主要发现
@@ -54,8 +49,10 @@ library(ggrepel)
 ```{r}
 # 载入数据和预处理
 
-lj<- read_csv("/Users/jameschen/Documents/02_Teaching/12_quantitative_thinking_R/data/2023-09-12_cleaned.csv")
+lj<- read_csv("C:/Users/admin/Documents/1st_assignment/data/2023-09-12_cleaned.csv")
 # EDA ---------------------------------------------------------------------
+
+showtext_auto(enable = TRUE)
 
 ## 如下语句可以解决画图中的中文显示问题，当然你可以用showtext包来解决
 
@@ -70,10 +67,11 @@ theme_set(theme(text = element_text(family="Songti SC",size = 10))) #这里famil
 数据表（lj)共包括`r names(lj)`等`r ncol(lj)`个变量,共`r nrow(lj)`行。表的前10行示例如下：
 
 ```{r}
-lj %>% 
-  head(10) %>%
-  kable(caption = "武汉链家二手房") %>% 
-  kable_styling()
+# library(kableExtra)
+# lj %>% 
+#   head(10) %>%
+#   kable(caption = "武汉链家二手房") %>% 
+#   kable_styling()
 ```
 
 各变量的简短信息：
@@ -89,66 +87,185 @@ summary(lj)
 可以看到：
 
 - 直观结论1
+武汉二手房总价均值为155.9万元，中位数为137万元；总价金额主要集中在95万元至188万元区间内。
 
 - 直观结论2
+武汉二手房单价均值为15148元，中位数为14404元；单价主要集中在10799元至18211元区间内。
 
-- ...
+- 直观结论3
+武汉二手房以2居室和3居室居多，占比超过50%；建筑面积集中在84.92㎡至117.68㎡区间内，
+平均建筑面积为100.87㎡，中位数为95.55㎡。
 
 # 探索性分析
 
-## 变量1的数值描述与图形
+## by_subway的数值描述与图形
 
 发现：
 
-- 发现1
+- 发现1:武汉二手房中，地铁沿线与非地铁沿线的房子比例大致为1：1。
+```{r ,warning=FALSE}
 
-- 发现2
 
-## 变量2的数值描述与图形
 
-发现：
+by_subway <- lj %>%
+  filter(near_subway == "近地铁" | is.na(near_subway))
 
-- 发现1
+count_by_subway <- by_subway %>%
+  group_by(near_subway) %>%
+  summarize(count = n())
 
-- 发现2
+# #直方图
+# count_by_subway %>%
+#   ggplot(aes(x = near_subway , y = count)) +
+#   geom_bar(stat = "identity" , fill = "blue")
 
-## 变量...的数值描述与图形
+#饼图
+ggplot(count_by_subway , aes(x = "" , y = near_subway , fill = count)) +
+  geom_bar(stat = "identity" , width = 1) +
+  coord_polar(theta = "y") +
+  labs(x = "" , y = "" , title = "") +
+  theme(axis.ticks = element_blank()) +
+  theme(legend.title = element_blank() , legend.position = "top")
 
-发现：
+```
 
-- 发现1
 
-- 发现2
-
-## 探索问题1
-
-发现：
-
-- 发现1
-
-- 发现2
-
-## 探索问题2
-
-发现：
-
-- 发现1
-
-- 发现2
-
-## 探索问题3
+## property_region的数值描述与图形
 
 发现：
 
-- 发现1
+- 发现1：按二手房市场的区域划分，全武汉共有87个区域
+```{r , warning=FALSE}
 
-- 发现2
+library(wordcloud2)
 
----
+#按property_region进行分组
+region_groups <- lj %>%
+  select(property_region) %>%
+  group_by(property_region)
+
+#统计每个分组的计数
+per_region <- summarize(region_groups,count = n())
+
+#分组中property_region的数量即为区域数量
+#length(per_region$property_region)
+
+#饼图
+# ggplot(per_region , aes(x = "" , y = property_region , fill = count)) +
+#   geom_bar(stat = "identity" , width = 1) +
+#   coord_polar(theta = "y") +
+#   labs(x = "" , y = "" , title = "") +
+#   theme(axis.ticks = element_blank()) +
+#   theme(legend.title = element_blank() , legend.position = "top")
+
+#词云图
+
+wordcloud2(per_region  , color = "random-dark")
+
+
+```
+
+
+
+- 发现2:二手房市场，区域供应量前四为白沙洲、盘龙城、四新、光谷东，均超过100
+```{r , warning=FALSE }
+rm(lj_region_top10)
+
+region_top10 <- per_region %>%
+  filter(rank(desc(count)) < 11)
+#region_top10 <-  arrange(region_top10 , desc(count))
+
+#view(lj_region_top20)
+
+region_top10 %>%
+  ggplot() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = .5)) +
+  geom_bar(aes(x = reorder(property_region , -count) , y = count) ,stat = "identity" , fill = "blue")
+
+```
+
+
+
+## 探索问题1：地铁是否影响二手房单价和关注度
+
+发现：
+
+- 发现1:地铁沿线房价明显高于非地铁沿线
+```{r ,warning=FALSE}
+
+by_subway%>%
+  ggplot(aes(near_subway,price_sqm,color = near_subway)) +
+  geom_boxplot()
+
+```
+
+- 发现2:地铁沿线二手房关注度更高
+```{r ,warning=FALSE}
+follow_subway <- by_subway %>%
+  group_by(near_subway) %>%
+  summarize(mean_follow = mean(followers))
+
+follow_subway %>%
+   ggplot(aes(x = near_subway , y = mean_follow, color = near_subway)) +
+   geom_bar(stat = "identity"  )
+
+
+```
+
+
+## 探索单价、面积、关注度直接的关系
+
+发现：
+
+- 发现1:二手房单价整体随面积增大而升高
+```{r ,warning=FALSE}
+
+# library(car)
+# 
+# outlierTest(lj)
+
+lj%>%
+  ggplot(aes(building_area,price_sqm)) +
+  geom_point() +
+  geom_smooth() +
+  coord_cartesian(xlim = c(0,300))
+
+```
+
+
+
+- 发现2:二手房关注度整体随面积增大而升高
+```{r ,warning=FALSE}
+
+lj <- lj%>%
+  filter(building_area < 300)
+
+lj%>%
+  ggplot(aes(building_area,followers)) +
+  geom_point() +
+  geom_smooth() +
+  coord_cartesian(xlim = c(0,200) , ylim = c(0,100))
+
+```
+
+
+- 发现3:二手房关注度整体随单价升高而升高
+```{r ,warning=FALSE}
+
+
+lj%>%
+  ggplot(aes(price_sqm,followers)) +
+  geom_point() +
+  geom_smooth() +
+  coord_cartesian(ylim = c(0,100))
+
+```
 
 # 发现总结
 
-用1-3段话总结你的发现。
+1.地铁房具有明显市场价值，地铁房单价明显高于非地铁房。
+2.二手房市场供应按区域划分有明显的聚集点，且各聚集点在武汉三镇分布较分散。
+3.在正常数值范围内，二手房单价、面积、关注度三者呈正相关。
 
 
 
